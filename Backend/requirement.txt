@@ -1,0 +1,7 @@
+mysql-connector-python
+flask
+bcrypt
+flask_cors
+requests
+joblib
+scikit-learn
