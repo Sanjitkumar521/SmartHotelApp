@@ -17,7 +17,7 @@ const ChefDashboard = () => {
     try {
       const storedChefId = await AsyncStorage.getItem("user_id");
       if (storedChefId) {
-        setChefId(parseInt(storedChefId)); 
+        setChefId(parseInt(storedChefId));
       } else {
         Alert.alert("Error", "Chef ID not found. Please log in again.");
       }
@@ -36,7 +36,7 @@ const ChefDashboard = () => {
         setOrders((prevOrders) => {
           // Keep existing accepted orders
           const existingOrders = prevOrders.filter(order => order.accepted);
-         
+
           const newOrders = response.data.map(order => ({
             ...order,
             timeLeft: order.timeLeft ?? 10, // Preserve timeLeft for existing orders
@@ -44,11 +44,11 @@ const ChefDashboard = () => {
             completed: prevOrders.find(o => o.order_id === order.order_id)?.completed || false,
           }));
 
-          return [...existingOrders, ...newOrders]; 
+          return [...existingOrders, ...newOrders];
         });
         setError(null);
       } else {
-        setOrders(prevOrders => prevOrders.filter(order => order.accepted)); 
+        setOrders(prevOrders => prevOrders.filter(order => order.accepted));
         setError("No new orders available.");
       }
     } catch (error) {
@@ -62,7 +62,7 @@ const ChefDashboard = () => {
   useEffect(() => {
     fetchChefId();
     fetchOrders();
-    const interval = setInterval(fetchOrders, 10000); 
+    const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -73,7 +73,7 @@ const ChefDashboard = () => {
           if (!order.accepted && order.timeLeft > 0) {
             return { ...order, timeLeft: order.timeLeft - 1 };
           }
-          return order; 
+          return order;
         })
       );
     }, 1000);
@@ -83,8 +83,6 @@ const ChefDashboard = () => {
 
 
 
-
-  // Handle Accept Order
   const handleAccept = async (orderId) => {
     try {
       const response = await axios.post("http://192.168.18.50:8082/accept-order", {

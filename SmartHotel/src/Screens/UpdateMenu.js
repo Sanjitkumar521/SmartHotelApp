@@ -1,5 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import axios from 'axios';
 
 const UpdateMenu = () => {
@@ -11,11 +22,26 @@ const UpdateMenu = () => {
   const [imageUrl, setImageUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [isFetched, setIsFetched] = useState(false); // Track if menu is fetched
 
   // Fetch menu item details
   const fetchMenuItem = async () => {
-    if (!menuId) {
-      Alert.alert('Error', 'Please enter a Menu ID');
+    let errors = [];
+
+    if (!menuId || menuId.trim().length === 0) {
+      errors.push('Menu ID: Please fill the field.');
+    } else {
+      const menuIdValue = parseInt(menuId);
+      const menuIdPattern = /^\d+$/;
+      if (!menuIdPattern.test(menuId.trim())) {
+        errors.push('Menu ID: Must be a valid number.');
+      } else if (isNaN(menuIdValue) || menuIdValue <= 0) {
+        errors.push('Menu ID: Must be a positive number greater than 0.');
+      }
+    }
+
+    if (errors.length > 0) {
+      Alert.alert('Validation Error', errors.join('\n'));
       return;
     }
 
@@ -29,6 +55,7 @@ const UpdateMenu = () => {
         setPrice(price ? price.toString() : '');
         setCategory(category || '');
         setImageUrl(image_url || '');
+        setIsFetched(true); // Mark as fetched
       } else {
         Alert.alert('Error', 'Menu item not found');
         resetForm();
@@ -42,25 +69,105 @@ const UpdateMenu = () => {
     }
   };
 
-  // Reset form fields (except menuId)
+  // Handle menuId change attempt
+  const handleMenuIdChange = (text) => {
+    if (isFetched) {
+      Alert.alert('Cannot Edit Menu ID', 'You cannot update the Menu ID. Please fetch a new Menu ID to start over.');
+      return;
+    }
+    setMenuId(text);
+  };
+
+  // Reset form fields
   const resetForm = () => {
+    setMenuId('');
     setName('');
     setDescription('');
     setPrice('');
     setCategory('');
     setImageUrl('');
+    setIsFetched(false); // Reset fetched state
+  };
+
+  // Validation function for update form
+  const validateForm = () => {
+    let errors = [];
+
+    // Validate Menu ID
+    if (!menuId || menuId.trim().length === 0) {
+      errors.push('Menu ID: Please fill the field.');
+    } else {
+      const menuIdValue = parseInt(menuId);
+      const menuIdPattern = /^\d+$/;
+      if (!menuIdPattern.test(menuId.trim())) {
+        errors.push('Menu ID: Must be a valid number.');
+      } else if (isNaN(menuIdValue) || menuIdValue <= 0) {
+        errors.push('Menu ID: Must be a positive number greater than 0.');
+      }
+    }
+
+    // Validate Menu Name
+    const namePattern = /^[A-Za-z\s]+$/;
+    if (!name || name.trim().length === 0) {
+      errors.push('Menu Name: Please fill the field.');
+    } else if (name.trim().length < 3) {
+      errors.push('Menu Name: Must be at least 3 characters long.');
+    } else if (!namePattern.test(name.trim())) {
+      errors.push('Menu Name: Must contain only letters and spaces (no numbers or special characters).');
+    }
+
+    // Validate Description
+    const descriptionPattern = /^[A-Za-z\s,.!]+$/;
+    if (!description || description.trim().length === 0) {
+      errors.push('Description: Please fill the field.');
+    } else if (description.trim().length < 10) {
+      errors.push('Description: Must be at least 10 characters long.');
+    } else if (!descriptionPattern.test(description.trim())) {
+      errors.push('Description: Must contain only letters, spaces, and basic punctuation (e.g., commas, periods).');
+    }
+
+    // Validate Price
+    if (!price || price.trim().length === 0) {
+      errors.push('Price: Please fill the field.');
+    } else {
+      const priceValue = parseFloat(price);
+      const pricePattern = /^\d+(\.\d{1,2})?$/;
+      if (!pricePattern.test(price.trim())) {
+        errors.push('Price: Must be a valid number (e.g., 10 or 10.99).');
+      } else if (isNaN(priceValue) || priceValue <= 0) {
+        errors.push('Price: Must be a positive number greater than 0.');
+      }
+    }
+
+    // Validate Category
+    const categoryPattern = /^[A-Za-z\s]+$/;
+    if (!category || category.trim().length === 0) {
+      errors.push('Category: Please fill the field.');
+    } else if (category.trim().length < 3) {
+      errors.push('Category: Must be at least 3 characters long.');
+    } else if (!categoryPattern.test(category.trim())) {
+      errors.push('Category: Must contain only letters and spaces (no numbers or special characters).');
+    }
+
+    // Validate Image URL
+    const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/;
+    if (!imageUrl || imageUrl.trim().length === 0) {
+      errors.push('Image URL: Please fill the field.');
+    } else if (!urlPattern.test(imageUrl.trim())) {
+      errors.push('Image URL: Must be a valid URL (e.g., https://example.com/image.jpg).');
+    }
+
+    if (errors.length > 0) {
+      Alert.alert('Validation Error', errors.join('\n'));
+      return false;
+    }
+
+    return true;
   };
 
   // Handle form submission to update the menu item
   const handleUpdateMenu = async () => {
-    if (!menuId || !name || !price) {
-      Alert.alert('Error', 'Menu ID, Name, and Price are required');
-      return;
-    }
-
-    const priceValue = parseFloat(price);
-    if (isNaN(priceValue) || priceValue < 0) {
-      Alert.alert('Error', 'Price must be a valid number >= 0');
+    if (!validateForm()) {
       return;
     }
 
@@ -69,15 +176,14 @@ const UpdateMenu = () => {
       const response = await axios.put(`http://192.168.18.50:8082/update_menu/${menuId}`, {
         name,
         description,
-        price: priceValue,
+        price: parseFloat(price),
         category,
         image_url: imageUrl,
       });
 
       if (response.status === 200) {
         Alert.alert('Success', 'Menu updated successfully');
-        setMenuId('');
-        resetForm();
+        resetForm(); // Reset form after successful update
       }
     } catch (error) {
       console.error('Update error:', error);
@@ -105,11 +211,12 @@ const UpdateMenu = () => {
             <Text style={styles.label}>Menu Id</Text>
             <View style={styles.menuIdContainer}>
               <TextInput
-                style={[styles.input, styles.menuIdInput]}
+                style={[styles.input, styles.menuIdInput, isFetched && styles.disabledInput]}
                 placeholder="Enter Menu Id"
                 value={menuId}
-                onChangeText={setMenuId}
+                onChangeText={handleMenuIdChange}
                 keyboardType="numeric"
+                editable={!isFetched} // Disable input after fetch
               />
               <TouchableOpacity
                 style={[styles.fetchButton, isFetching && styles.disabledButton]}
@@ -189,7 +296,7 @@ const UpdateMenu = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5E050', // Yellow background
+    backgroundColor: '#F5E050',
   },
   keyboardAvoidingContainer: {
     flex: 1,
@@ -232,20 +339,24 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   fetchButton: {
-    backgroundColor: '#87CEEB', // Blue button for Fetch
+    backgroundColor: '#87CEEB',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
   },
   updateButton: {
-    backgroundColor: '#FF5733', // Red button
+    backgroundColor: '#FF5733',
     padding: 15,
     borderRadius: 25,
     alignItems: 'center',
     marginTop: 10,
   },
   disabledButton: {
-    backgroundColor: '#FF9999', // Lighter red when disabled
+    backgroundColor: '#FF9999',
+  },
+  disabledInput: {
+    backgroundColor: '#f0f0f0', // Gray background for disabled input
+    color: '#666', // Gray text for disabled input
   },
   buttonText: {
     color: '#fff',

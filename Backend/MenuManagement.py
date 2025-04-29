@@ -13,7 +13,8 @@ def add_menu():
         description = request.form.get('description')
         price = request.form.get('price')
         category = request.form.get('category')
-        image_url = request.form.get('image_url')
+        image_url = request.form.get('imageUrl')
+        print(image_url)
 
         if not name or not price:
             return jsonify({'error': 'Name and price are required'}), 400

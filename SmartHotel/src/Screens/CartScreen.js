@@ -6,7 +6,7 @@ import { PrimaryButton } from '../../Components/Button';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CartScreen = ({ route, navigation }) => {
-  const { cart, clearCart, setCart } = route.params; // Added setCart from params
+  const { cart, clearCart, setCart } = route.params;
   const [cartItems, setCartItems] = useState(cart || []);
   const [tableNumber, setTableNumber] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
@@ -16,12 +16,10 @@ const CartScreen = ({ route, navigation }) => {
   const [rating, setRating] = useState('');
   const [feedback, setFeedback] = useState('');
 
-  // Sync cartItems with HomeScreen's cart state
   useEffect(() => {
-    setCart(cartItems); // Update HomeScreen's cart whenever cartItems changes
+    setCart(cartItems);
   }, [cartItems, setCart]);
 
-  // Update cartItems when route.params.cart changes
   useEffect(() => {
     if (route.params.cart) {
       setCartItems(route.params.cart);
@@ -38,7 +36,6 @@ const CartScreen = ({ route, navigation }) => {
         const newItems = prevItems.map((item) =>
           item.menu_id === menu_id ? { ...item, quantity: item.quantity - 1 } : item
         );
-        // Remove item if quantity becomes 0
         return newItems.filter((item) => item.quantity > 0);
       }
       return prevItems;
@@ -47,23 +44,45 @@ const CartScreen = ({ route, navigation }) => {
 
   const totalPrice = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
 
+  // Function to fetch user_id from AsyncStorage
+  const fetchCustomerDetail = async () => {
+    try {
+      const id = await AsyncStorage.getItem('user_id');
+      if (!id) {
+        console.warn('No user_id found in AsyncStorage');
+        return null;
+      }
+      return id;
+    } catch (error) {
+      console.error('Error fetching customer ID:', error);
+      return null;
+    }
+  };
+
   const placeOrder = async () => {
     if (!tableNumber.trim()) {
       Alert.alert('Error', 'Please enter a table number.');
       return;
     }
 
-    const orderData = {
-      table_number: parseInt(tableNumber),
-      customer_id: 1,
-      cart_items: cartItems.map((item) => ({
-        menu_id: item.menu_id,
-        quantity: item.quantity,
-        subtotal: item.price * item.quantity,
-      })),
-    };
-
     try {
+      // Fetch user_id
+      const userId = await fetchCustomerDetail();
+      if (!userId) {
+        Alert.alert('Error', 'User not logged in. Please log in to place an order.');
+        return;
+      }
+
+      const orderData = {
+        table_number: parseInt(tableNumber),
+        customer_id: parseInt(userId), // Use fetched user_id
+        cart_items: cartItems.map((item) => ({
+          menu_id: item.menu_id,
+          quantity: item.quantity,
+          subtotal: item.price * item.quantity,
+        })),
+      };
+
       const response = await fetch('http://192.168.18.50:8082/place-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,15 +116,22 @@ const CartScreen = ({ route, navigation }) => {
       return;
     }
 
-    const reviewData = {
-      customer_id: 1,
-      customer_name: 'Ariz',
-      menu_id: selectedMenuId,
-      rating: parseInt(rating),
-      feedback,
-    };
-
     try {
+      // Fetch user_id
+      const userId = await fetchCustomerDetail();
+      if (!userId) {
+        Alert.alert('Error', 'User not logged in. Please log in to submit a review.');
+        return;
+      }
+
+      const reviewData = {
+        customer_id: parseInt(userId), // Use fetched user_id
+        customer_name: 'Ariz', // Consider fetching dynamically if available
+        menu_id: selectedMenuId,
+        rating: parseInt(rating),
+        feedback,
+      };
+
       const response = await fetch('http://192.168.18.50:8082/api/reviews', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,6 +159,14 @@ const CartScreen = ({ route, navigation }) => {
       Alert.alert('Error', 'Please enter a table number.');
       return;
     }
+
+    // Validate that tableNumber is a positive integer
+    const isValidNumber = /^[1-9]\d*$/.test(tableNumber);
+    if (!isValidNumber) {
+      Alert.alert('Error', 'Table number must be a valid positive number (no letters or special characters).');
+      return;
+    }
+
     setModalVisible(false);
     placeOrder();
   };
@@ -216,8 +250,8 @@ const CartScreen = ({ route, navigation }) => {
               onChangeText={setTableNumber}
             />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
-            <Button title="Confirm" onPress={confirmTableNumber} />
-            <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
+              <Button title="Confirm" onPress={confirmTableNumber} />
+              <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
             </View>
           </View>
         </View>

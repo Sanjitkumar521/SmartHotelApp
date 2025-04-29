@@ -144,3 +144,8 @@ def complete_order():
     except Exception as e:
         print(f"Error completing order: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+    
+    
+
+

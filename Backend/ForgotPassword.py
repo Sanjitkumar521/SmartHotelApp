@@ -16,7 +16,7 @@ password_reset_bp = Blueprint('password_reset', __name__)
 
 # Gmail SMTP configuration
 GMAIL_USER = 'chysanjit13@gmail.com'  # Replace with your Gmail address
-GMAIL_PASSWORD = 'vtaa aiqu mptv wgag'  # Replace with your Gmail App Password
+GMAIL_PASSWORD = 'ucbi wijn fxeq khel'  # Replace with your Gmail App Password
 
 def send_otp_email(to_email, otp):
     try:
@@ -66,6 +66,23 @@ def send_password_reset_otp():
         print(f"Received email: {email}")
         if not email:
             return jsonify({"error": "Email is required"}), 400
+        
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"message": "Database connection failed"}), 500
+
+        cursor = connection.cursor()
+
+        # Check if username already exists
+        # Check if username or email already exists
+        cursor.execute("SELECT * FROM Users WHERE email = %s", (email,))
+
+        user = cursor.fetchone()
+        print(f"User found: {user}")
+    
+        if not user:
+            # assuming email is in the 2nd column
+            return jsonify({"error": "User with this email not foud"}),400
         
         Global_email= email
         

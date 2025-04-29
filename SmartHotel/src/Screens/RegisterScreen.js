@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   View,
@@ -8,11 +7,12 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  Alert,
+  ActivityIndicator, // Added for loading state
 } from "react-native";
 import { MaterialIcons, FontAwesome } from "@expo/vector-icons";
 
 const RegisterScreen = ({ navigation }) => {
-  // State for form fields
   const [form, setForm] = useState({
     email: "",
     name: "",
@@ -21,16 +21,16 @@ const RegisterScreen = ({ navigation }) => {
     phone: "",
   });
 
-  // State for validation errors
   const [errors, setErrors] = useState({
     email: "",
-    username: "",
+    name: "",
     password: "",
     role: "",
     phone: "",
   });
 
-  // Validation function
+  const [loading, setLoading] = useState(false); // Added loading state
+
   const validateField = (field, value) => {
     let error = "";
 
@@ -40,10 +40,10 @@ const RegisterScreen = ({ navigation }) => {
         if (!value.trim()) error = "Email is required";
         else if (!emailRegex.test(value)) error = "Invalid email format";
         break;
-      case "username":
-        if (!value.trim()) error = "Username is required";
+      case "name":
+        if (!value.trim()) error = "Name is required";
         else if (value.length < 3)
-          error = "Username must be at least 3 characters";
+          error = "Name must be at least 3 characters";
         break;
       case "password":
         if (!value) error = "Password is required";
@@ -51,7 +51,9 @@ const RegisterScreen = ({ navigation }) => {
           error = "Password must be at least 6 characters";
         break;
       case "role":
+        const validRoles = ["Customer", "Admin", "Chef"];
         if (!value.trim()) error = "Role is required";
+        else if (!validRoles.includes(value)) error = "Invalid role";
         break;
       case "phone":
         const phoneRegex = /^\d{10}$/;
@@ -63,17 +65,19 @@ const RegisterScreen = ({ navigation }) => {
         break;
     }
 
-    setErrors((prev) => ({ ...prev, [field]: error }));
+    setErrors((prev) => {
+      const updatedErrors = { ...prev, [field]: error };
+      console.log(`Validation for ${field}:`, updatedErrors);
+      return updatedErrors;
+    });
     return error === "";
   };
 
-  // Handle input change and validate
   const handleInputChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     validateField(field, value);
   };
 
-  // Check if the entire form is valid
   const isFormValid = () => {
     const validations = Object.keys(form).map((field) =>
       validateField(field, form[field])
@@ -81,12 +85,13 @@ const RegisterScreen = ({ navigation }) => {
     return validations.every((valid) => valid);
   };
 
-  // Handle form submission
   const handleRegister = async () => {
     if (!isFormValid()) {
-      alert("Please fix the errors in the form");
+      Alert.alert("Validation Error", "Please fix the errors in the form");
       return;
     }
+
+    setLoading(true); // Set loading to true
 
     const formData = new FormData();
     formData.append("email", form.email);
@@ -95,44 +100,43 @@ const RegisterScreen = ({ navigation }) => {
     formData.append("role", form.role);
     formData.append("phone", form.phone);
 
-    // API URL (replace with your backend URL)
     const API_URL = "http://192.168.18.50:8082/register";
 
     try {
-      //console.log(API_URL);
       const response = await fetch(API_URL, {
         method: "POST",
         body: formData,
         headers: {},
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        console.log("Upload Error:", data);
-        throw new Error(`${data.message}`);
-      }
       const data = await response.json();
+
+      if (!response.ok) {
+        console.log("Upload Error:", data);
+        Alert.alert("Registration Failed", data.error || "An error occurred during registration");
+        return;
+      }
+
       console.log("Upload Response:", data);
-      navigation.navigate("loginscreen");
-      //setResponse(data); // Store the data for display
+      Alert.alert("Success", "User registered successfully!", [
+        { text: "OK", onPress: () => navigation.navigate("loginscreen") },
+      ]);
     } catch (error) {
-      //console.error('Upload Error:', error);
-      //setError(error.message);
+      console.error("Registration Error:", error.message);
+      Alert.alert("Error", error.message || "An unexpected error occurred");
     } finally {
-      setLoading(false);
+      setLoading(false); // Reset loading state
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
-        {/* Illustration */}
         <Image
           source={require("../../assets/images/Register.png")}
           style={styles.illustration}
         />
 
-        {/* Input Fields */}
         <View style={styles.inputContainer}>
           <MaterialIcons
             name="email"
@@ -147,9 +151,12 @@ const RegisterScreen = ({ navigation }) => {
             onChangeText={(text) => handleInputChange("email", text)}
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={!loading} // Disable input while loading
           />
         </View>
-        {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
+        {errors.email?.length > 0 && (
+          <Text style={styles.error}>{errors.email}</Text>
+        )}
 
         <View style={styles.inputContainer}>
           <FontAwesome
@@ -159,15 +166,16 @@ const RegisterScreen = ({ navigation }) => {
             style={styles.icon}
           />
           <TextInput
-            placeholder="name"
+            placeholder="Name"
             style={styles.input}
-            value={form.username}
+            value={form.name}
             onChangeText={(text) => handleInputChange("name", text)}
+            editable={!loading}
           />
         </View>
-        {errors.username ? (
-          <Text style={styles.error}>{errors.username}</Text>
-        ) : null}
+        {errors.name?.length > 0 && (
+          <Text style={styles.error}>{errors.name}</Text>
+        )}
 
         <View style={styles.inputContainer}>
           <FontAwesome
@@ -182,11 +190,12 @@ const RegisterScreen = ({ navigation }) => {
             style={styles.input}
             value={form.password}
             onChangeText={(text) => handleInputChange("password", text)}
+            editable={!loading}
           />
         </View>
-        {errors.password ? (
+        {errors.password?.length > 0 && (
           <Text style={styles.error}>{errors.password}</Text>
-        ) : null}
+        )}
 
         <View style={styles.inputContainer}>
           <FontAwesome
@@ -196,13 +205,16 @@ const RegisterScreen = ({ navigation }) => {
             style={styles.icon}
           />
           <TextInput
-            placeholder="Role (e.g., User, Admin)"
+            placeholder="Role (Customer, Admin, Chef)"
             style={styles.input}
             value={form.role}
             onChangeText={(text) => handleInputChange("role", text)}
+            editable={!loading}
           />
         </View>
-        {errors.role ? <Text style={styles.error}>{errors.role}</Text> : null}
+        {errors.role?.length > 0 && (
+          <Text style={styles.error}>{errors.role}</Text>
+        )}
 
         <View style={styles.inputContainer}>
           <FontAwesome
@@ -217,23 +229,29 @@ const RegisterScreen = ({ navigation }) => {
             value={form.phone}
             onChangeText={(text) => handleInputChange("phone", text)}
             keyboardType="phone-pad"
+            editable={!loading}
           />
         </View>
-        {errors.phone ? <Text style={styles.error}>{errors.phone}</Text> : null}
+        {errors.phone?.length > 0 && (
+          <Text style={styles.error}>{errors.phone}</Text>
+        )}
 
-        {/* Navigation Links */}
         <View style={styles.linkContainer}>
           <TouchableOpacity onPress={() => navigation.navigate("loginscreen")}>
             <Text style={styles.linkText}>Already have an account? Login</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Register Button */}
         <TouchableOpacity
-          style={styles.registerButton}
+          style={[styles.registerButton, loading && styles.registerButtonDisabled]}
           onPress={handleRegister}
+          disabled={loading}
         >
-          <Text style={styles.registerText}>Register</Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.registerText}>Register</Text>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -296,6 +314,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
     width: "100%",
     alignItems: "center",
+  },
+  registerButtonDisabled: {
+    backgroundColor: "#d1a575", // Lighter shade to indicate disabled state
+    opacity: 0.7,
   },
   registerText: {
     color: "#fff",
